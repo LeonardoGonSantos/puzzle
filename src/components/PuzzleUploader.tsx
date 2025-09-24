@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PuzzleImage, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
 
@@ -6,6 +6,7 @@ interface PuzzleUploaderProps {
   phase: ProcessingPhase;
   onPuzzleSelected: (payload: { file: File; pieceCount: number }) => Promise<void>;
   onDivide: () => Promise<void>;
+  onPieceCountChange?: (pieceCount: number) => void;
   image?: PuzzleImage;
   isSplitting: boolean;
   splitProgress?: { processed: number; total: number } | null;
@@ -16,6 +17,7 @@ export const PuzzleUploader = ({
   phase,
   onPuzzleSelected,
   onDivide,
+  onPieceCountChange,
   image,
   isSplitting,
   splitProgress,
@@ -23,6 +25,12 @@ export const PuzzleUploader = ({
 }: PuzzleUploaderProps) => {
   const [pieceCountInput, setPieceCountInput] = useState('100');
   const [selectedFilename, setSelectedFilename] = useState<string>();
+
+  useEffect(() => {
+    if (image?.grid?.totalPieces) {
+      setPieceCountInput(String(image.grid.totalPieces));
+    }
+  }, [image?.id, image?.grid.totalPieces]);
 
   const isReady = phase === 'ready' || phase === 'splitting';
   const totalPieces = image?.grid.totalPieces ?? (Number(pieceCountInput) || 0);
@@ -34,6 +42,15 @@ export const PuzzleUploader = ({
     setSelectedFilename(file.name);
     await onPuzzleSelected({ file, pieceCount: Number.isFinite(count) ? count : 0 });
     event.target.value = '';
+  };
+
+  const handlePieceCountInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setPieceCountInput(value);
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      onPieceCountChange?.(parsed);
+    }
   };
 
   const handleDivide = async () => {
@@ -82,7 +99,7 @@ export const PuzzleUploader = ({
           min={1}
           step={1}
           value={pieceCountInput}
-          onChange={(event) => setPieceCountInput(event.target.value)}
+          onChange={handlePieceCountInputChange}
           disabled={isSplitting}
         />
         <p className="helper-text">

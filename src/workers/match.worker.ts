@@ -18,22 +18,30 @@ const cosineSimilarity = (a: Float32Array, b: Float32Array) => {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
+const TOP_K = 5;
+
 const handleMatch = (message: MatchWorkerMessage) => {
   const { pieces, targetEmbedding, puzzleId } = message;
-  let bestScore = -Infinity;
-  let bestPiece: MatchWorkerResponse['match'];
+  const topCandidates: Array<{
+    pieceId: string;
+    row: number;
+    col: number;
+    score: number;
+  }> = [];
 
   pieces.forEach((piece, index) => {
     const score = cosineSimilarity(targetEmbedding, piece.embedding);
-    if (score > bestScore) {
-      bestScore = score;
-      bestPiece = {
-        pieceId: piece.pieceId,
-        row: piece.row,
-        col: piece.col,
-        score,
-      };
+    topCandidates.push({
+      pieceId: piece.pieceId,
+      row: piece.row,
+      col: piece.col,
+      score,
+    });
+    topCandidates.sort((a, b) => b.score - a.score);
+    if (topCandidates.length > TOP_K) {
+      topCandidates.length = TOP_K;
     }
+
     const progress: MatchWorkerResponse = {
       type: 'match-progress',
       processed: index + 1,
@@ -42,10 +50,25 @@ const handleMatch = (message: MatchWorkerMessage) => {
     (self as DedicatedWorkerGlobalScope).postMessage(progress);
   });
 
+  const ranked = topCandidates.map((candidate, index) => ({
+    ...candidate,
+    rank: index + 1,
+  }));
+
+  const bestCandidate = ranked[0];
   const response: MatchWorkerResponse = {
     type: 'match-result',
     puzzleId,
-    match: bestPiece && bestScore > 0 ? bestPiece : undefined,
+    match:
+      bestCandidate && bestCandidate.score > 0
+        ? {
+            pieceId: bestCandidate.pieceId,
+            row: bestCandidate.row,
+            col: bestCandidate.col,
+            score: bestCandidate.score,
+          }
+        : undefined,
+    candidates: ranked,
   };
   (self as DedicatedWorkerGlobalScope).postMessage(response);
 };

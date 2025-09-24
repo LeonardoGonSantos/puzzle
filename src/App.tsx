@@ -12,6 +12,7 @@ function App() {
     pieces,
     phase,
     matchedPiece,
+    topMatches,
     controllerError,
     errorContext,
     splitProgress,
@@ -20,6 +21,7 @@ function App() {
     handlePuzzleSelected,
     splitPuzzle,
     handlePieceUpload,
+    handlePieceCountChange,
     reset,
   } = usePuzzleController();
 
@@ -47,6 +49,7 @@ function App() {
             phase={phase}
             onPuzzleSelected={handlePuzzleSelected}
             onDivide={splitPuzzle}
+            onPieceCountChange={handlePieceCountChange}
             image={image}
             isSplitting={isSplitting}
             splitProgress={splitProgress}
@@ -59,6 +62,7 @@ function App() {
             phase={phase}
             onPieceUpload={handlePieceUpload}
             match={matchedPiece}
+            candidates={topMatches}
             isMatching={isMatching}
             matchProgress={matchProgress}
             piecesCount={pieces.length}
@@ -74,7 +78,7 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <h2>Visualização</h2>
-            <PuzzleCanvas image={image} match={matchedPiece} />
+            <PuzzleCanvas image={image} match={matchedPiece} candidates={topMatches} />
           </div>
 
           <div className="card">

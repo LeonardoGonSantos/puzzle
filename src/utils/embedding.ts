@@ -23,10 +23,14 @@ export const loadEmbeddingModel = async () => {
 export const embedImageBitmap = async (bitmap: ImageBitmap) => {
   const model = await loadEmbeddingModel();
   return tf.tidy(() => {
-    const tensor = tf.browser.fromPixels(bitmap).toFloat().div(255);
+    const tensor = tf.browser.fromPixels(bitmap).toFloat().div(255) as tf.Tensor3D;
     const resized = tf.image.resizeBilinear(tensor, [224, 224], true);
     const batched = resized.expandDims(0);
-    const embedding = model.infer(batched, 'conv_preds') as tf.Tensor;
+    const embedding = (
+      model as unknown as {
+        infer: (input: tf.Tensor, endpoint?: string) => tf.Tensor;
+      }
+    ).infer(batched, 'conv_preds');
     const data = embedding.dataSync();
     const vector = new Float32Array(data.length);
     vector.set(data);

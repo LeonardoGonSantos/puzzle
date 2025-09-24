@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
-import type { MatchResult, ProcessingPhase } from '../types/puzzle';
+import type { MatchCandidate, MatchResult, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
+
+const candidateColors = ['#dc2626', '#ea580c', '#ca8a04', '#10b981', '#0ea5e9'];
 
 interface PieceMatcherProps {
   phase: ProcessingPhase;
   onPieceUpload: (file: File) => Promise<void>;
   match?: MatchResult;
+  candidates?: MatchCandidate[];
   isMatching: boolean;
   matchProgress?: { processed: number; total: number } | null;
   piecesCount: number;
@@ -17,6 +20,7 @@ export const PieceMatcher = ({
   phase,
   onPieceUpload,
   match,
+  candidates = [],
   isMatching,
   matchProgress,
   piecesCount,
@@ -26,6 +30,7 @@ export const PieceMatcher = ({
   const [lastUploadedName, setLastUploadedName] = useState<string>();
 
   const canUploadPiece = piecesCount > 0 && modelStatus !== 'loading';
+  const hasCandidates = candidates.length > 0;
 
   const statusNode = useMemo(() => {
     if (lastError) {
@@ -108,6 +113,32 @@ export const PieceMatcher = ({
       {match && (
         <div className="badge" role="note">
           Similaridade {(match.score * 100).toFixed(1)}%
+        </div>
+      )}
+
+      {hasCandidates && !isMatching && (
+        <div>
+          <h3 style={{ margin: '8px 0', fontSize: '1rem' }}>Top 5 posições prováveis</h3>
+          <ol style={{ margin: 0, paddingLeft: 20, color: '#1f2937' }}>
+            {candidates.slice(0, 5).map((candidate) => (
+              <li
+                key={candidate.pieceId}
+                style={{
+                  marginBottom: 6,
+                  borderLeft: `4px solid ${
+                    candidateColors[candidate.rank - 1] ??
+                    candidateColors[candidateColors.length - 1]
+                  }`,
+                  paddingLeft: 8,
+                }}
+              >
+                Linha {candidate.row + 1}, Coluna {candidate.col + 1}{' '}
+                <span className="badge" style={{ marginLeft: 8 }}>
+                  {(candidate.score * 100).toFixed(1)}%
+                </span>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
     </div>

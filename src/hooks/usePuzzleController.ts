@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePuzzleStore } from '../state/puzzleStore';
-import type { MatchResult, PieceRecord, PuzzleImage } from '../types/puzzle';
+import type { MatchCandidate, MatchResult, PieceRecord, PuzzleImage } from '../types/puzzle';
 import { createId } from '../utils/id';
 import { deriveGrid, calculateTileSize } from '../utils/grid';
 import { fileToImageBitmap, imageBitmapToDataUrl } from '../utils/image';
@@ -32,11 +32,13 @@ export const usePuzzleController = () => {
     pieces,
     phase,
     matchedPiece,
+    topMatches,
     setImage,
     setPieces,
     updatePiece,
     setPhase,
     setMatchResult,
+    updateGrid,
     reset,
   } = usePuzzleStore(
     useShallow((state) => ({
@@ -44,11 +46,13 @@ export const usePuzzleController = () => {
       pieces: state.pieces,
       phase: state.phase,
       matchedPiece: state.matchedPiece,
+      topMatches: state.topMatches,
       setImage: state.setImage,
       setPieces: state.setPieces,
       updatePiece: state.updatePiece,
       setPhase: state.setPhase,
       setMatchResult: state.setMatchResult,
+      updateGrid: state.updateGrid,
       reset: state.reset,
     })),
   );
@@ -69,10 +73,10 @@ export const usePuzzleController = () => {
   const pieceUrlsRef = useRef<string[]>([]);
   const embeddingCache = useRef<Map<string, Float32Array>>(new Map());
 
-  const disposePieceUrls = () => {
+  const disposePieceUrls = useCallback(() => {
     pieceUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     pieceUrlsRef.current = [];
-  };
+  }, []);
 
   const resetState = useCallback(async () => {
     disposePieceUrls();
@@ -86,7 +90,7 @@ export const usePuzzleController = () => {
     setModelStatus('idle');
     await clearStorage();
     reset();
-  }, [reset]);
+  }, [disposePieceUrls, reset]);
 
   const handlePuzzleSelected = useCallback(
     async ({ file, pieceCount }: UploadPayload) => {
@@ -118,9 +122,21 @@ export const usePuzzleController = () => {
   );
 
   const splitPuzzle = useCallback(async () => {
-    if (!image || !puzzleBitmapRef.current) {
+    if (!image) {
       setControllerError('Envie uma imagem do quebra-cabeça antes de dividir.');
       return;
+    }
+
+    if (!puzzleBitmapRef.current) {
+      try {
+        const response = await fetch(image.dataUrl);
+        const blob = await response.blob();
+        puzzleBitmapRef.current = await createImageBitmap(blob);
+      } catch {
+        setControllerError('Não foi possível recuperar a imagem original. Envie novamente.');
+        setErrorContext('upload');
+        return;
+      }
     }
 
     try {
@@ -181,7 +197,15 @@ export const usePuzzleController = () => {
       setPhase('idle');
       setSplitProgress(null);
     }
-  }, [image, setPhase, setPieces, splitImage]);
+  }, [
+    disposePieceUrls,
+    image,
+    setControllerError,
+    setErrorContext,
+    setPhase,
+    setPieces,
+    splitImage,
+  ]);
 
   const ensurePieceEmbedding = useCallback(
     async (piece: PieceRecord) => {
@@ -251,7 +275,7 @@ export const usePuzzleController = () => {
           });
         }
 
-        const match = await runMatch(
+        const result = await runMatch(
           {
             puzzleId: image.id,
             targetEmbedding,
@@ -262,17 +286,22 @@ export const usePuzzleController = () => {
             onError: (message) => setControllerError(message),
           },
         );
+        const candidates: MatchCandidate[] = (result.candidates ?? []).map((candidate) => ({
+          pieceId: candidate.pieceId,
+          row: candidate.row,
+          col: candidate.col,
+          score: candidate.score,
+          rank: candidate.rank,
+        }));
+
+        candidates.forEach((candidate) => {
+          updatePiece(candidate.pieceId, { score: candidate.score });
+        });
 
         const evaluatedMatch: MatchResult | undefined =
-          match && match.score >= MATCH_THRESHOLD ? match : undefined;
+          result.match && result.match.score >= MATCH_THRESHOLD ? result.match : undefined;
 
-        if (evaluatedMatch) {
-          const score = evaluatedMatch.score;
-          setMatchResult(evaluatedMatch);
-          updatePiece(evaluatedMatch.pieceId, { score });
-        } else {
-          setMatchResult(undefined);
-        }
+        setMatchResult(evaluatedMatch, candidates);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha ao comparar a peça';
         setControllerError(message);
@@ -294,12 +323,52 @@ export const usePuzzleController = () => {
     ],
   );
 
+  const handlePieceCountChange = useCallback(
+    (pieceCount: number) => {
+      if (!Number.isFinite(pieceCount) || pieceCount < 1) {
+        setControllerError('Informe um número válido de peças (>= 1).');
+        setErrorContext('upload');
+        return;
+      }
+
+      if (!image) {
+        setControllerError('Envie a foto do quebra-cabeça antes de definir a quantidade de peças.');
+        setErrorContext('upload');
+        return;
+      }
+
+      setControllerError(undefined);
+      setErrorContext(null);
+
+      const grid = deriveGrid(pieceCount);
+      disposePieceUrls();
+      embeddingCache.current.clear();
+      setMatchResult(undefined, []);
+      setSplitProgress(null);
+      setMatchProgress(null);
+      updateGrid(grid);
+      setPhase('idle');
+    },
+    [
+      disposePieceUrls,
+      image,
+      setControllerError,
+      setErrorContext,
+      setMatchResult,
+      updateGrid,
+      setSplitProgress,
+      setMatchProgress,
+      setPhase,
+    ],
+  );
+
   const state = useMemo(
     () => ({
       image,
       pieces,
       phase,
       matchedPiece,
+      topMatches,
       controllerError,
       errorContext,
       splitProgress,
@@ -312,6 +381,7 @@ export const usePuzzleController = () => {
       image,
       matchProgress,
       matchedPiece,
+      topMatches,
       modelStatus,
       phase,
       pieces,
@@ -324,6 +394,7 @@ export const usePuzzleController = () => {
     handlePuzzleSelected,
     splitPuzzle,
     handlePieceUpload,
+    handlePieceCountChange,
     reset: resetState,
   };
 };

@@ -66,6 +66,13 @@ export interface MatchResponse {
     col: number;
     score: number;
   };
+  candidates: Array<{
+    pieceId: string;
+    row: number;
+    col: number;
+    score: number;
+    rank: number;
+  }>;
 }
 
 export interface MatchError {

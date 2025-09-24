@@ -46,6 +46,10 @@ export interface MatchResult {
   score: number;
 }
 
+export interface MatchCandidate extends MatchResult {
+  rank: number;
+}
+
 export interface PuzzleError {
   code: string;
   message: string;

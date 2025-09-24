@@ -12,8 +12,10 @@ interface MatchCallbacks {
   onError?: (message: string) => void;
 }
 
+type WorkerResult = Extract<MatchWorkerResponse, { type: 'match-result' }>;
+
 type Resolver = {
-  resolve: (result: MatchWorkerResponse['match'] | undefined) => void;
+  resolve: (result: WorkerResult) => void;
   reject: (error: Error) => void;
   callbacks?: MatchCallbacks;
 };
@@ -48,7 +50,7 @@ export const useMatchWorker = () => {
       }
 
       if (payload.type === 'match-result') {
-        resolver.resolve(payload.match);
+        resolver.resolve(payload);
         resolverRef.current = null;
       }
     };
@@ -71,7 +73,7 @@ export const useMatchWorker = () => {
       resolverRef.current.reject(new Error('Matching already in progress'));
     }
 
-    return new Promise<MatchWorkerResponse['match'] | undefined>((resolve, reject) => {
+    return new Promise<WorkerResult>((resolve, reject) => {
       resolverRef.current = { resolve, reject, callbacks };
       const message: MatchWorkerMessage = {
         type: 'match',
