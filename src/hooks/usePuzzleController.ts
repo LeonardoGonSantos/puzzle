@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { usePuzzleStore } from '../state/puzzleStore';
 import type { MatchResult, PieceRecord, PuzzleImage } from '../types/puzzle';
 import { createId } from '../utils/id';
@@ -37,18 +38,20 @@ export const usePuzzleController = () => {
     setPhase,
     setMatchResult,
     reset,
-  } = usePuzzleStore((state) => ({
-    image: state.image,
-    pieces: state.pieces,
-    phase: state.phase,
-    matchedPiece: state.matchedPiece,
-    setImage: state.setImage,
-    setPieces: state.setPieces,
-    updatePiece: state.updatePiece,
-    setPhase: state.setPhase,
-    setMatchResult: state.setMatchResult,
-    reset: state.reset,
-  }));
+  } = usePuzzleStore(
+    useShallow((state) => ({
+      image: state.image,
+      pieces: state.pieces,
+      phase: state.phase,
+      matchedPiece: state.matchedPiece,
+      setImage: state.setImage,
+      setPieces: state.setPieces,
+      updatePiece: state.updatePiece,
+      setPhase: state.setPhase,
+      setMatchResult: state.setMatchResult,
+      reset: state.reset,
+    })),
+  );
   const { splitImage } = useSplitWorker();
   const { runMatch } = useMatchWorker();
 
