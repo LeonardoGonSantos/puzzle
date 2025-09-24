@@ -1,7 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePuzzleStore } from '../state/puzzleStore';
-import type { MatchCandidate, MatchResult, PieceRecord, PuzzleImage } from '../types/puzzle';
+import type {
+  HierarchyNode,
+  MatchCandidate,
+  MatchResult,
+  PieceRecord,
+  PuzzleImage,
+} from '../types/puzzle';
 import { createId } from '../utils/id';
 import { deriveGrid, calculateTileSize } from '../utils/grid';
 import { fileToImageBitmap, imageBitmapToDataUrl } from '../utils/image';
@@ -12,11 +18,13 @@ import {
   saveEmbedding,
   savePieceBlob,
   saveThumbnailBlob,
+  saveHierarchy,
 } from '../storage/pieceStorage';
 import { useSplitWorker } from './useSplitWorker';
 import { useMatchWorker } from './useMatchWorker';
-import type { EmbeddingPayload } from '../workers/types';
+import type { EmbeddingPayload, HierarchyNodePayload } from '../workers/types';
 import { embedImageBitmap, loadEmbeddingModel } from '../utils/embedding';
+import { buildHierarchyNodes, DEFAULT_HIERARCHY_CONFIG } from '../utils/hierarchy';
 
 interface UploadPayload {
   file: File;
@@ -33,11 +41,15 @@ export const usePuzzleController = () => {
     phase,
     matchedPiece,
     topMatches,
+    hierarchyNodes,
+    hierarchyPath,
     setImage,
     setPieces,
     updatePiece,
     setPhase,
     setMatchResult,
+    setHierarchyNodes,
+    setHierarchyPath,
     updateGrid,
     reset,
   } = usePuzzleStore(
@@ -47,11 +59,15 @@ export const usePuzzleController = () => {
       phase: state.phase,
       matchedPiece: state.matchedPiece,
       topMatches: state.topMatches,
+      hierarchyNodes: state.hierarchyNodes,
+      hierarchyPath: state.hierarchyPath,
       setImage: state.setImage,
       setPieces: state.setPieces,
       updatePiece: state.updatePiece,
       setPhase: state.setPhase,
       setMatchResult: state.setMatchResult,
+      setHierarchyNodes: state.setHierarchyNodes,
+      setHierarchyPath: state.setHierarchyPath,
       updateGrid: state.updateGrid,
       reset: state.reset,
     })),
@@ -72,6 +88,10 @@ export const usePuzzleController = () => {
   const puzzleBitmapRef = useRef<ImageBitmap | null>(null);
   const pieceUrlsRef = useRef<string[]>([]);
   const embeddingCache = useRef<Map<string, Float32Array>>(new Map());
+  const embeddingSizeRef = useRef<number | null>(null);
+  const pieceMapRef = useRef<Map<string, PieceRecord>>(new Map());
+  const hierarchyNodesRef = useRef<HierarchyNode[]>([]);
+  const nodeEmbeddingCache = useRef<Map<string, Float32Array>>(new Map());
 
   const disposePieceUrls = useCallback(() => {
     pieceUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -89,8 +109,14 @@ export const usePuzzleController = () => {
     setErrorContext(null);
     setModelStatus('idle');
     await clearStorage();
+    hierarchyNodesRef.current = [];
+    nodeEmbeddingCache.current.clear();
+    embeddingSizeRef.current = null;
+    pieceMapRef.current.clear();
+    setHierarchyNodes([]);
+    setHierarchyPath([]);
     reset();
-  }, [disposePieceUrls, reset]);
+  }, [disposePieceUrls, reset, setHierarchyNodes, setHierarchyPath]);
 
   const handlePuzzleSelected = useCallback(
     async ({ file, pieceCount }: UploadPayload) => {
@@ -187,9 +213,15 @@ export const usePuzzleController = () => {
         }),
       );
 
+      const hierarchy = buildHierarchyNodes(records, image, DEFAULT_HIERARCHY_CONFIG);
+      hierarchyNodesRef.current = hierarchy;
+      setHierarchyNodes(hierarchy);
+      await saveHierarchy(image.id, hierarchy);
+
       setPieces(records);
       setPhase('ready');
       setSplitProgress(null);
+      pieceMapRef.current = new Map(records.map((record) => [record.id, record]));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao dividir a imagem';
       setControllerError(message);
@@ -204,6 +236,7 @@ export const usePuzzleController = () => {
     setErrorContext,
     setPhase,
     setPieces,
+    setHierarchyNodes,
     splitImage,
   ]);
 
@@ -217,6 +250,9 @@ export const usePuzzleController = () => {
       const stored = await loadEmbedding(embeddingKey);
       if (stored) {
         embeddingCache.current.set(piece.id, stored);
+        if (embeddingSizeRef.current === null) {
+          embeddingSizeRef.current = stored.length;
+        }
         return stored;
       }
 
@@ -227,12 +263,54 @@ export const usePuzzleController = () => {
       const bitmap = await createImageBitmap(blob);
       const embedding = await embedImageBitmap(bitmap);
       bitmap.close();
+      if (embeddingSizeRef.current === null) {
+        embeddingSizeRef.current = embedding.length;
+      }
       await saveEmbedding(embeddingKey, embedding);
       embeddingCache.current.set(piece.id, embedding);
       updatePiece(piece.id, { embeddingKey });
+      pieceMapRef.current.set(piece.id, { ...piece, embeddingKey });
       return embedding;
     },
     [updatePiece],
+  );
+
+  const ensureNodeEmbedding = useCallback(
+    async (node: HierarchyNode) => {
+      if (nodeEmbeddingCache.current.has(node.id)) {
+        return nodeEmbeddingCache.current.get(node.id) as Float32Array;
+      }
+
+      const embeddings: Float32Array[] = [];
+      for (const pieceId of node.pieceIds) {
+        const piece = pieceMapRef.current.get(pieceId);
+        if (!piece) continue;
+        const embedding = await ensurePieceEmbedding(piece);
+        embeddings.push(embedding);
+      }
+
+      if (embeddings.length === 0) {
+        const size = embeddingSizeRef.current ?? 1;
+        const placeholder = new Float32Array(size);
+        nodeEmbeddingCache.current.set(node.id, placeholder);
+        return placeholder;
+      }
+
+      const dimension = embeddings[0].length;
+      const buffer = new Float32Array(dimension);
+      embeddings.forEach((vector) => {
+        for (let index = 0; index < dimension; index += 1) {
+          buffer[index] += vector[index];
+        }
+      });
+      for (let index = 0; index < dimension; index += 1) {
+        buffer[index] /= embeddings.length;
+      }
+
+      nodeEmbeddingCache.current.set(node.id, buffer);
+      return buffer;
+    },
+    [ensurePieceEmbedding],
   );
 
   const handlePieceUpload = useCallback(
@@ -275,11 +353,34 @@ export const usePuzzleController = () => {
           });
         }
 
+        const currentHierarchy = hierarchyNodesRef.current.length
+          ? hierarchyNodesRef.current
+          : hierarchyNodes;
+
+        let hierarchyPayload: HierarchyNodePayload[] | undefined;
+        let rootNodeIds: string[] | undefined;
+
+        if (currentHierarchy.length > 0) {
+          hierarchyPayload = await Promise.all(
+            currentHierarchy.map(async (node) => ({
+              id: node.id,
+              level: node.level,
+              parentId: node.parentId,
+              pieceIds: node.pieceIds,
+              bounds: node.bounds,
+              embedding: await ensureNodeEmbedding(node),
+            })),
+          );
+          rootNodeIds = hierarchyPayload.filter((node) => node.level === 0).map((node) => node.id);
+        }
+
         const result = await runMatch(
           {
             puzzleId: image.id,
             targetEmbedding,
             pieces: pieceEmbeddings,
+            hierarchyNodes: hierarchyPayload,
+            rootNodeIds,
           },
           {
             onProgress: (processed, total) => setMatchProgress({ processed, total }),
@@ -296,12 +397,20 @@ export const usePuzzleController = () => {
 
         candidates.forEach((candidate) => {
           updatePiece(candidate.pieceId, { score: candidate.score });
+          const pieceRecord = pieceMapRef.current.get(candidate.pieceId);
+          if (pieceRecord) {
+            pieceMapRef.current.set(candidate.pieceId, {
+              ...pieceRecord,
+              score: candidate.score,
+            });
+          }
         });
 
         const evaluatedMatch: MatchResult | undefined =
           result.match && result.match.score >= MATCH_THRESHOLD ? result.match : undefined;
 
         setMatchResult(evaluatedMatch, candidates);
+        setHierarchyPath(result.path ?? []);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha ao comparar a peça';
         setControllerError(message);
@@ -316,8 +425,11 @@ export const usePuzzleController = () => {
       pieces,
       modelStatus,
       ensurePieceEmbedding,
+      ensureNodeEmbedding,
+      hierarchyNodes,
       runMatch,
       setMatchResult,
+      setHierarchyPath,
       setPhase,
       updatePiece,
     ],
@@ -343,7 +455,12 @@ export const usePuzzleController = () => {
       const grid = deriveGrid(pieceCount);
       disposePieceUrls();
       embeddingCache.current.clear();
+      hierarchyNodesRef.current = [];
+      nodeEmbeddingCache.current.clear();
+      pieceMapRef.current.clear();
       setMatchResult(undefined, []);
+      setHierarchyNodes([]);
+      setHierarchyPath([]);
       setSplitProgress(null);
       setMatchProgress(null);
       updateGrid(grid);
@@ -356,11 +473,21 @@ export const usePuzzleController = () => {
       setErrorContext,
       setMatchResult,
       updateGrid,
+      setHierarchyNodes,
+      setHierarchyPath,
       setSplitProgress,
       setMatchProgress,
       setPhase,
     ],
   );
+
+  useEffect(() => {
+    if (hierarchyNodes.length === 0) {
+      hierarchyNodesRef.current = [];
+      return;
+    }
+    hierarchyNodesRef.current = hierarchyNodes;
+  }, [hierarchyNodes]);
 
   const state = useMemo(
     () => ({
@@ -369,6 +496,8 @@ export const usePuzzleController = () => {
       phase,
       matchedPiece,
       topMatches,
+      hierarchyNodes,
+      hierarchyPath,
       controllerError,
       errorContext,
       splitProgress,
@@ -382,6 +511,8 @@ export const usePuzzleController = () => {
       matchProgress,
       matchedPiece,
       topMatches,
+      hierarchyNodes,
+      hierarchyPath,
       modelStatus,
       phase,
       pieces,

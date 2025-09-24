@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type {
+  HierarchyNode,
+  HierarchyPathItem,
   MatchCandidate,
   MatchResult,
   PieceRecord,
@@ -16,6 +18,8 @@ interface PuzzleState {
   error?: PuzzleError;
   matchedPiece?: MatchResult;
   topMatches: MatchCandidate[];
+  hierarchyNodes: HierarchyNode[];
+  hierarchyPath: HierarchyPathItem[];
   setImage: (image: PuzzleImage) => void;
   setPieces: (pieces: PieceRecord[]) => void;
   updatePiece: (pieceId: string, data: Partial<PieceRecord>) => void;
@@ -23,13 +27,20 @@ interface PuzzleState {
   setError: (error?: PuzzleError) => void;
   setMatchResult: (result?: MatchResult, candidates?: MatchCandidate[]) => void;
   updateGrid: (grid: PuzzleGrid) => void;
+  setHierarchyNodes: (nodes: HierarchyNode[]) => void;
+  setHierarchyPath: (path: HierarchyPathItem[]) => void;
   reset: () => void;
 }
 
-const initialState: Pick<PuzzleState, 'pieces' | 'phase' | 'topMatches'> = {
+const initialState: Pick<
+  PuzzleState,
+  'pieces' | 'phase' | 'topMatches' | 'hierarchyNodes' | 'hierarchyPath'
+> = {
   pieces: [],
   phase: 'idle',
   topMatches: [],
+  hierarchyNodes: [],
+  hierarchyPath: [],
 };
 
 export const usePuzzleStore = create<PuzzleState>((set) => ({
@@ -40,6 +51,8 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       pieces: [],
       matchedPiece: undefined,
       topMatches: [],
+      hierarchyNodes: [],
+      hierarchyPath: [],
       error: undefined,
       phase: state.phase === 'matching' ? 'idle' : state.phase,
     })),
@@ -48,6 +61,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       pieces,
       topMatches: [],
       matchedPiece: undefined,
+      hierarchyPath: [],
       phase: pieces.length > 0 ? 'ready' : 'idle',
     }),
   updatePiece: (pieceId, data) =>
@@ -71,8 +85,12 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         pieces: [],
         matchedPiece: undefined,
         topMatches: [],
+        hierarchyNodes: [],
+        hierarchyPath: [],
         phase: 'idle',
       };
     }),
+  setHierarchyNodes: (nodes) => set({ hierarchyNodes: nodes }),
+  setHierarchyPath: (path) => set({ hierarchyPath: path }),
   reset: () => set(initialState),
 }));

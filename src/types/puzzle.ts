@@ -50,6 +50,29 @@ export interface MatchCandidate extends MatchResult {
   rank: number;
 }
 
+export interface QuadBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface HierarchyNode {
+  id: string;
+  level: number;
+  parentId?: string;
+  childIds?: string[];
+  bounds: QuadBounds;
+  pieceIds: string[];
+}
+
+export interface HierarchyPathItem {
+  nodeId: string;
+  level: number;
+  score: number;
+  bounds: QuadBounds;
+}
+
 export interface PuzzleError {
   code: string;
   message: string;

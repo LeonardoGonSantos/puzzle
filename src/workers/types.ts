@@ -1,4 +1,4 @@
-import type { PuzzleGrid } from '../types/puzzle';
+import type { PuzzleGrid, QuadBounds } from '../types/puzzle';
 
 export interface SplitPieceData {
   id: string;
@@ -51,11 +51,22 @@ export interface EmbeddingPayload {
   height: number;
 }
 
+export interface HierarchyNodePayload {
+  id: string;
+  level: number;
+  parentId?: string;
+  bounds: QuadBounds;
+  embedding: Float32Array;
+  pieceIds: string[];
+}
+
 export interface MatchRequest {
   type: 'match';
   puzzleId: string;
   targetEmbedding: Float32Array;
   pieces: EmbeddingPayload[];
+  hierarchyNodes?: HierarchyNodePayload[];
+  rootNodeIds?: string[];
 }
 export interface MatchResponse {
   type: 'match-result';
@@ -72,6 +83,12 @@ export interface MatchResponse {
     col: number;
     score: number;
     rank: number;
+  }>;
+  path: Array<{
+    nodeId: string;
+    level: number;
+    score: number;
+    bounds: QuadBounds;
   }>;
 }
 

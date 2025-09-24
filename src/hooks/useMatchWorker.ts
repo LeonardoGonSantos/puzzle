@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { MatchWorkerMessage, MatchWorkerResponse, EmbeddingPayload } from '../workers/types';
+import type {
+  MatchWorkerMessage,
+  MatchWorkerResponse,
+  EmbeddingPayload,
+  HierarchyNodePayload,
+} from '../workers/types';
 
 interface MatchArgs {
   puzzleId: string;
   targetEmbedding: Float32Array;
   pieces: EmbeddingPayload[];
+  hierarchyNodes?: HierarchyNodePayload[];
+  rootNodeIds?: string[];
 }
 
 interface MatchCallbacks {

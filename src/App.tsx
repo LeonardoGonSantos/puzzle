@@ -13,6 +13,7 @@ function App() {
     phase,
     matchedPiece,
     topMatches,
+    hierarchyPath,
     controllerError,
     errorContext,
     splitProgress,
@@ -63,6 +64,7 @@ function App() {
             onPieceUpload={handlePieceUpload}
             match={matchedPiece}
             candidates={topMatches}
+            path={hierarchyPath}
             isMatching={isMatching}
             matchProgress={matchProgress}
             piecesCount={pieces.length}
@@ -78,7 +80,12 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <h2>Visualização</h2>
-            <PuzzleCanvas image={image} match={matchedPiece} candidates={topMatches} />
+            <PuzzleCanvas
+              image={image}
+              match={matchedPiece}
+              candidates={topMatches}
+              path={hierarchyPath}
+            />
           </div>
 
           <div className="card">

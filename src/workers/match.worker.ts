@@ -1,5 +1,10 @@
 /// <reference lib="webworker" />
-import type { MatchWorkerMessage, MatchWorkerResponse } from './types';
+import type {
+  EmbeddingPayload,
+  HierarchyNodePayload,
+  MatchWorkerMessage,
+  MatchWorkerResponse,
+} from './types';
 
 const cosineSimilarity = (a: Float32Array, b: Float32Array) => {
   let dot = 0;
@@ -19,57 +24,192 @@ const cosineSimilarity = (a: Float32Array, b: Float32Array) => {
 };
 
 const TOP_K = 5;
+const HIERARCHY_THRESHOLD = 0.55;
 
-const handleMatch = (message: MatchWorkerMessage) => {
-  const { pieces, targetEmbedding, puzzleId } = message;
-  const topCandidates: Array<{
-    pieceId: string;
-    row: number;
-    col: number;
+interface TraversalResult {
+  leaf?: HierarchyNodePayload;
+  path: Array<{
+    node: HierarchyNodePayload;
     score: number;
-  }> = [];
+  }>;
+}
+
+const groupChildren = (nodes: HierarchyNodePayload[]) => {
+  const map = new Map<string, HierarchyNodePayload[]>();
+  nodes.forEach((node) => {
+    if (!node.parentId) return;
+    if (!map.has(node.parentId)) {
+      map.set(node.parentId, []);
+    }
+    map.get(node.parentId)!.push(node);
+  });
+  return map;
+};
+
+const selectBestNode = (candidateNodes: HierarchyNodePayload[], target: Float32Array) => {
+  let bestNode: HierarchyNodePayload | undefined;
+  let bestScore = -Infinity;
+  candidateNodes.forEach((node) => {
+    const score = cosineSimilarity(target, node.embedding);
+    if (score > bestScore) {
+      bestScore = score;
+      bestNode = node;
+    }
+  });
+  return { bestNode, bestScore };
+};
+
+const traverseHierarchy = (
+  hierarchyNodes: HierarchyNodePayload[],
+  rootNodeIds: string[] | undefined,
+  targetEmbedding: Float32Array,
+): TraversalResult => {
+  if (hierarchyNodes.length === 0) {
+    return { path: [] };
+  }
+
+  const nodesById = new Map<string, HierarchyNodePayload>();
+  hierarchyNodes.forEach((node) => nodesById.set(node.id, node));
+
+  const childrenMap = groupChildren(hierarchyNodes);
+  const roots: HierarchyNodePayload[] = rootNodeIds
+    ? rootNodeIds
+        .map((id) => nodesById.get(id))
+        .filter((node): node is HierarchyNodePayload => Boolean(node))
+    : hierarchyNodes.filter((node) => node.level === 0);
+
+  let candidateNodes = roots;
+  const path: TraversalResult['path'] = [];
+  let leaf: HierarchyNodePayload | undefined;
+
+  while (candidateNodes.length > 0) {
+    const { bestNode, bestScore } = selectBestNode(candidateNodes, targetEmbedding);
+    if (!bestNode) {
+      break;
+    }
+    path.push({ node: bestNode, score: bestScore });
+    const children = childrenMap.get(bestNode.id) ?? [];
+    if (children.length === 0) {
+      leaf = bestNode;
+      break;
+    }
+    candidateNodes = children;
+  }
+
+  if (!leaf && path.length > 0) {
+    leaf = path[path.length - 1].node;
+  }
+
+  return { leaf, path };
+};
+
+const evaluatePieces = (
+  targetEmbedding: Float32Array,
+  pieces: EmbeddingPayload[],
+  postProgress: (processed: number, total: number) => void,
+) => {
+  const candidates: Array<{ pieceId: string; row: number; col: number; score: number }> = [];
+  let bestScore = -Infinity;
+  let bestCandidate: { pieceId: string; row: number; col: number; score: number } | undefined;
 
   pieces.forEach((piece, index) => {
     const score = cosineSimilarity(targetEmbedding, piece.embedding);
-    topCandidates.push({
+    const candidate = {
       pieceId: piece.pieceId,
       row: piece.row,
       col: piece.col,
       score,
-    });
-    topCandidates.sort((a, b) => b.score - a.score);
-    if (topCandidates.length > TOP_K) {
-      topCandidates.length = TOP_K;
-    }
-
-    const progress: MatchWorkerResponse = {
-      type: 'match-progress',
-      processed: index + 1,
-      total: pieces.length,
     };
-    (self as DedicatedWorkerGlobalScope).postMessage(progress);
+    candidates.push(candidate);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCandidate = candidate;
+    }
+    postProgress(index + 1, pieces.length);
   });
 
-  const ranked = topCandidates.map((candidate, index) => ({
+  candidates.sort((a, b) => b.score - a.score);
+  const ranked = candidates.slice(0, TOP_K).map((candidate, index) => ({
     ...candidate,
     rank: index + 1,
   }));
 
-  const bestCandidate = ranked[0];
+  return {
+    bestCandidate,
+    ranked,
+  };
+};
+
+const handleMatch = (message: MatchWorkerMessage) => {
+  const { pieces, targetEmbedding, puzzleId, hierarchyNodes, rootNodeIds } = message;
+
+  const postProgress = (processed: number, total: number) => {
+    const progress: MatchWorkerResponse = {
+      type: 'match-progress',
+      processed,
+      total,
+    };
+    (self as DedicatedWorkerGlobalScope).postMessage(progress);
+  };
+
+  let traversal: TraversalResult = { path: [] };
+  if (hierarchyNodes && hierarchyNodes.length > 0) {
+    traversal = traverseHierarchy(hierarchyNodes, rootNodeIds, targetEmbedding);
+  }
+
+  let candidatePieces = pieces;
+  if (traversal.leaf && traversal.leaf.pieceIds.length > 0) {
+    const pieceSet = new Set(traversal.leaf.pieceIds);
+    const subset = pieces.filter((piece) => pieceSet.has(piece.pieceId));
+    if (subset.length > 0) {
+      candidatePieces = subset;
+    }
+  }
+
+  const evaluation = evaluatePieces(targetEmbedding, candidatePieces, postProgress);
+  let ranked = evaluation.ranked;
+  let bestCandidate =
+    evaluation.bestCandidate && evaluation.bestCandidate.score > 0
+      ? evaluation.bestCandidate
+      : undefined;
+
+  // Fallback: if hierarchy path exists but best candidate ficou abaixo do threshold, considera todas as peças.
+  if (
+    hierarchyNodes &&
+    hierarchyNodes.length > 0 &&
+    traversal.path.length > 0 &&
+    (!bestCandidate || bestCandidate.score < HIERARCHY_THRESHOLD)
+  ) {
+    const fallbackResult = evaluatePieces(targetEmbedding, pieces, () => {});
+    if (
+      fallbackResult.bestCandidate &&
+      fallbackResult.bestCandidate.score > (bestCandidate?.score ?? 0)
+    ) {
+      ranked = fallbackResult.ranked;
+      bestCandidate = fallbackResult.bestCandidate;
+    }
+  }
+
   const response: MatchWorkerResponse = {
     type: 'match-result',
     puzzleId,
-    match:
-      bestCandidate && bestCandidate.score > 0
-        ? {
-            pieceId: bestCandidate.pieceId,
-            row: bestCandidate.row,
-            col: bestCandidate.col,
-            score: bestCandidate.score,
-          }
-        : undefined,
+    match: ranked[0]
+      ? {
+          pieceId: ranked[0].pieceId,
+          row: ranked[0].row,
+          col: ranked[0].col,
+          score: ranked[0].score,
+        }
+      : undefined,
     candidates: ranked,
+    path: traversal.path.map(({ node, score }) => ({
+      nodeId: node.id,
+      level: node.level,
+      score,
+      bounds: node.bounds,
+    })),
   };
+
   (self as DedicatedWorkerGlobalScope).postMessage(response);
 };
 

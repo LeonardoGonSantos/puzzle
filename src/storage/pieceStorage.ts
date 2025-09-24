@@ -1,7 +1,9 @@
 import { openDB, type DBSchema } from 'idb';
 
 const DB_NAME = 'puzzle-piece-store';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+
+import type { HierarchyNode } from '../types/puzzle';
 
 interface PieceStore extends DBSchema {
   pieces: {
@@ -15,6 +17,10 @@ interface PieceStore extends DBSchema {
   embeddings: {
     key: string;
     value: Float32Array;
+  };
+  hierarchies: {
+    key: string;
+    value: HierarchyNode[];
   };
 }
 
@@ -32,6 +38,9 @@ const getDb = () => {
         }
         if (!database.objectStoreNames.contains('embeddings')) {
           database.createObjectStore('embeddings');
+        }
+        if (!database.objectStoreNames.contains('hierarchies')) {
+          database.createObjectStore('hierarchies');
         }
       },
     });
@@ -71,6 +80,16 @@ export const loadEmbedding = async (key: string) => {
 
 export const clearStorage = async () => {
   const db = await getDb();
-  const stores = ['pieces', 'thumbnails', 'embeddings'] as const;
+  const stores = ['pieces', 'thumbnails', 'embeddings', 'hierarchies'] as const;
   await Promise.all(stores.map((store) => db.clear(store)));
+};
+
+export const saveHierarchy = async (key: string, hierarchy: HierarchyNode[]) => {
+  const db = await getDb();
+  await db.put('hierarchies', hierarchy, key);
+};
+
+export const loadHierarchy = async (key: string) => {
+  const db = await getDb();
+  return db.get('hierarchies', key);
 };
