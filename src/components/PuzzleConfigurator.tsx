@@ -26,11 +26,15 @@ export const PuzzleConfigurator = ({
   const currentTotal = image?.grid.totalPieces ?? 0;
 
   useEffect(() => {
-    if (currentTotal > 1) {
-      setInputValue(String(currentTotal));
+    if (!currentTotal || currentTotal <= 1) {
+      return;
+    }
+    const nextValue = String(currentTotal);
+    if (inputValue !== nextValue) {
+      setInputValue(nextValue);
       onPieceCountChange(currentTotal);
     }
-  }, [currentTotal, onPieceCountChange]);
+  }, [currentTotal, inputValue, onPieceCountChange]);
 
   const rowsCols = useMemo(() => {
     if (!image) {
