@@ -459,21 +459,17 @@ export const usePuzzleController = () => {
       setErrorContext(null);
 
       const grid = deriveGrid(pieceCount);
-      disposePieceUrls();
-      embeddingCache.current.clear();
       hierarchyNodesRef.current = [];
       nodeEmbeddingCache.current.clear();
+      embeddingCache.current.clear();
       pieceMapRef.current.clear();
       setMatchResult(undefined, []);
       setHierarchyNodes([]);
       setHierarchyPath([]);
-      setSplitProgress(null);
-      setMatchProgress(null);
       updateGrid(grid);
       setPhase('idle');
     },
     [
-      disposePieceUrls,
       image,
       setControllerError,
       setErrorContext,
@@ -481,8 +477,6 @@ export const usePuzzleController = () => {
       updateGrid,
       setHierarchyNodes,
       setHierarchyPath,
-      setSplitProgress,
-      setMatchProgress,
       setPhase,
     ],
   );
