@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  FlowStep,
   HierarchyNode,
   HierarchyPathItem,
   MatchCandidate,
@@ -20,6 +21,7 @@ interface PuzzleState {
   topMatches: MatchCandidate[];
   hierarchyNodes: HierarchyNode[];
   hierarchyPath: HierarchyPathItem[];
+  step: FlowStep;
   setImage: (image: PuzzleImage) => void;
   setPieces: (pieces: PieceRecord[]) => void;
   updatePiece: (pieceId: string, data: Partial<PieceRecord>) => void;
@@ -29,18 +31,20 @@ interface PuzzleState {
   updateGrid: (grid: PuzzleGrid) => void;
   setHierarchyNodes: (nodes: HierarchyNode[]) => void;
   setHierarchyPath: (path: HierarchyPathItem[]) => void;
+  setStep: (step: FlowStep) => void;
   reset: () => void;
 }
 
 const initialState: Pick<
   PuzzleState,
-  'pieces' | 'phase' | 'topMatches' | 'hierarchyNodes' | 'hierarchyPath'
+  'pieces' | 'phase' | 'topMatches' | 'hierarchyNodes' | 'hierarchyPath' | 'step'
 > = {
   pieces: [],
   phase: 'idle',
   topMatches: [],
   hierarchyNodes: [],
   hierarchyPath: [],
+  step: 1,
 };
 
 export const usePuzzleStore = create<PuzzleState>((set) => ({
@@ -92,5 +96,6 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
     }),
   setHierarchyNodes: (nodes) => set({ hierarchyNodes: nodes }),
   setHierarchyPath: (path) => set({ hierarchyPath: path }),
+  setStep: (step) => set({ step }),
   reset: () => set(initialState),
 }));

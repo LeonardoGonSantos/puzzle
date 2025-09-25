@@ -28,7 +28,7 @@ import { buildHierarchyNodes, DEFAULT_HIERARCHY_CONFIG } from '../utils/hierarch
 
 interface UploadPayload {
   file: File;
-  pieceCount: number;
+  pieceCount?: number;
 }
 
 const THUMBNAIL_SIZE = 160;
@@ -43,6 +43,7 @@ export const usePuzzleController = () => {
     topMatches,
     hierarchyNodes,
     hierarchyPath,
+    step,
     setImage,
     setPieces,
     updatePiece,
@@ -51,6 +52,7 @@ export const usePuzzleController = () => {
     setHierarchyNodes,
     setHierarchyPath,
     updateGrid,
+    setStep,
     reset,
   } = usePuzzleStore(
     useShallow((state) => ({
@@ -61,6 +63,7 @@ export const usePuzzleController = () => {
       topMatches: state.topMatches,
       hierarchyNodes: state.hierarchyNodes,
       hierarchyPath: state.hierarchyPath,
+      step: state.step,
       setImage: state.setImage,
       setPieces: state.setPieces,
       updatePiece: state.updatePiece,
@@ -69,6 +72,7 @@ export const usePuzzleController = () => {
       setHierarchyNodes: state.setHierarchyNodes,
       setHierarchyPath: state.setHierarchyPath,
       updateGrid: state.updateGrid,
+      setStep: state.setStep,
       reset: state.reset,
     })),
   );
@@ -115,17 +119,16 @@ export const usePuzzleController = () => {
     pieceMapRef.current.clear();
     setHierarchyNodes([]);
     setHierarchyPath([]);
+    setStep(1);
     reset();
-  }, [disposePieceUrls, reset, setHierarchyNodes, setHierarchyPath]);
+  }, [disposePieceUrls, reset, setHierarchyNodes, setHierarchyPath, setStep]);
 
   const handlePuzzleSelected = useCallback(
     async ({ file, pieceCount }: UploadPayload) => {
       try {
-        if (!pieceCount || pieceCount < 1) {
-          throw new Error('Informe a quantidade de peças do quebra-cabeça.');
-        }
         await resetState();
-        const grid = deriveGrid(pieceCount);
+        const validCount = pieceCount && pieceCount > 0 ? pieceCount : 1;
+        const grid = deriveGrid(validCount);
         const bitmap = await fileToImageBitmap(file);
         puzzleBitmapRef.current = bitmap;
         const dataUrl = await imageBitmapToDataUrl(bitmap);
@@ -138,13 +141,14 @@ export const usePuzzleController = () => {
         };
         setImage(puzzleImage);
         setPhase('idle');
+        setStep(2);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha ao processar imagem';
         setControllerError(message);
         setErrorContext('upload');
       }
     },
-    [resetState, setImage, setPhase],
+    [resetState, setImage, setPhase, setStep],
   );
 
   const splitPuzzle = useCallback(async () => {
@@ -220,6 +224,7 @@ export const usePuzzleController = () => {
 
       setPieces(records);
       setPhase('ready');
+      setStep(3);
       setSplitProgress(null);
       pieceMapRef.current = new Map(records.map((record) => [record.id, record]));
     } catch (error) {
@@ -237,6 +242,7 @@ export const usePuzzleController = () => {
     setPhase,
     setPieces,
     setHierarchyNodes,
+    setStep,
     splitImage,
   ]);
 
@@ -503,6 +509,7 @@ export const usePuzzleController = () => {
       splitProgress,
       matchProgress,
       modelStatus,
+      step,
     }),
     [
       controllerError,
@@ -517,6 +524,7 @@ export const usePuzzleController = () => {
       phase,
       pieces,
       splitProgress,
+      step,
     ],
   );
 

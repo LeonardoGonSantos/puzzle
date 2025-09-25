@@ -1,47 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useRef } from 'react';
 import type { PuzzleImage, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
 
 interface PuzzleUploaderProps {
   phase: ProcessingPhase;
-  onPuzzleSelected: (payload: { file: File; pieceCount: number }) => Promise<void>;
-  onDivide: () => Promise<void>;
-  onPieceCountChange?: (pieceCount: number) => void;
+  onPuzzleSelected: (payload: { file: File }) => Promise<void>;
   image?: PuzzleImage;
   isSplitting: boolean;
-  splitProgress?: { processed: number; total: number } | null;
   lastError?: string;
 }
 
 export const PuzzleUploader = ({
   phase,
   onPuzzleSelected,
-  onDivide,
-  onPieceCountChange,
   image,
   isSplitting,
-  splitProgress,
   lastError,
 }: PuzzleUploaderProps) => {
-  const [pieceCountInput, setPieceCountInput] = useState('100');
   const [selectedFilename, setSelectedFilename] = useState<string>();
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (image?.grid?.totalPieces) {
-      setPieceCountInput(String(image.grid.totalPieces));
-    }
-  }, [image?.id, image?.grid.totalPieces]);
-
-  const isReady = phase === 'ready' || phase === 'splitting';
-  const totalPieces = image?.grid.totalPieces ?? (Number(pieceCountInput) || 0);
-
   const processFile = async (file: File | undefined) => {
     if (!file) return;
-    const count = Number(pieceCountInput);
     setSelectedFilename(file.name);
-    await onPuzzleSelected({ file, pieceCount: Number.isFinite(count) ? count : 0 });
+    await onPuzzleSelected({ file });
   };
 
   const handleGalleryChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,38 +49,16 @@ export const PuzzleUploader = ({
     cameraInputRef.current?.click();
   };
 
-  const handlePieceCountInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setPieceCountInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      onPieceCountChange?.(parsed);
-    }
-  };
-
-  const handleDivide = async () => {
-    await onDivide();
-  };
-
-  const canDivide = Boolean(image) && !isSplitting;
-
   return (
     <div className="card">
       <div>
-        <h2>Mapa do quebra-cabeça</h2>
+        <h2>Comece o mapa</h2>
         <p className="helper-text">
-          Envie a foto completa e informe quantas peças possui para que possamos dividir
-          automaticamente.
+          Envie uma foto do quebra-cabeça completo. Pode ser da galeria ou tirada na hora.
         </p>
       </div>
 
       {lastError && <StatusBanner variant="error">{lastError}</StatusBanner>}
-
-      {isReady && !lastError && (
-        <StatusBanner variant="success">
-          🎉 Uhul! Quebra-cabeça fatiado – pronto para investigar as peças.
-        </StatusBanner>
-      )}
 
       <div className="input-group">
         <label className="label" htmlFor="puzzle-file-input">
@@ -144,40 +105,11 @@ export const PuzzleUploader = ({
         </p>
       </div>
 
-      <div className="input-group">
-        <label className="label" htmlFor="piece-count-input">
-          Quantidade de peças
-        </label>
-        <input
-          id="piece-count-input"
-          type="number"
-          min={1}
-          step={1}
-          value={pieceCountInput}
-          onChange={handlePieceCountInputChange}
-          disabled={isSplitting}
-        />
-        <p className="helper-text">
-          Total: {totalPieces} peças
-          {image?.grid && (
-            <span>
-              {' '}
-              - Grade sugerida: {image.grid.rows} x {image.grid.cols}
-            </span>
-          )}
-        </p>
-      </div>
-
-      <div className="input-group">
-        <button type="button" className="primary" onClick={handleDivide} disabled={!canDivide}>
-          Dividir imagem
-        </button>
-        {isSplitting && splitProgress && splitProgress.total > 0 && (
-          <div className="split-progress" aria-label="Progresso da divisão">
-            <span style={{ width: `${(splitProgress.processed / splitProgress.total) * 100}%` }} />
-          </div>
-        )}
-      </div>
+      {image && phase === 'idle' && (
+        <StatusBanner variant="info">
+          Foto pronta! Agora vamos confirmar quantas peças existem.
+        </StatusBanner>
+      )}
     </div>
   );
 };

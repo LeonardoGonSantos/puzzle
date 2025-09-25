@@ -50,6 +50,8 @@ export interface MatchCandidate extends MatchResult {
   rank: number;
 }
 
+export type FlowStep = 1 | 2 | 3;
+
 export interface QuadBounds {
   x: number;
   y: number;
