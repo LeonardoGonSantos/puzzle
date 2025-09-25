@@ -44,7 +44,7 @@ const initialState: Pick<
   topMatches: [],
   hierarchyNodes: [],
   hierarchyPath: [],
-  step: 1,
+  step: 1, // Iniciar no upload da foto
 };
 
 export const usePuzzleStore = create<PuzzleState>((set) => ({

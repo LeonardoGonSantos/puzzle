@@ -1,0 +1,12 @@
+{
+  "instructions": {
+    "file": ".github/copilot-instructions.md",
+    "enabled": true,
+    "version": "1.0.0"
+  },
+  "rules": {
+    "applyTo": "**/*.cs",
+    "language": "csharp",
+    "framework": "net5.0"
+  }
+}

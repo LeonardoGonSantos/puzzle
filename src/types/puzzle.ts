@@ -50,7 +50,7 @@ export interface MatchCandidate extends MatchResult {
   rank: number;
 }
 
-export type FlowStep = 1 | 2 | 3;
+export type FlowStep = 1 | 2 | 3; // 1 = Foto, 2 = Peças, 3 = Encontrar
 
 export type MatchingMode = 'hierarchy' | 'global';
 

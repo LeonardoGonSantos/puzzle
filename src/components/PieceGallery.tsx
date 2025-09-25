@@ -1,4 +1,5 @@
 import type { PieceRecord } from '../types/puzzle';
+import './PieceGallery.css';
 
 interface PieceGalleryProps {
   pieces: PieceRecord[];
@@ -24,23 +25,16 @@ export const PieceGallery = ({ pieces, maxVisible = 40, isLoading }: PieceGaller
           {piece.thumbnailUrl ? (
             <img src={piece.thumbnailUrl} alt={`Peça ${piece.row + 1}x${piece.col + 1}`} />
           ) : (
-            <div
-              style={{
-                width: '100%',
-                aspectRatio: '1 / 1',
-                borderRadius: 12,
-                background: '#e2e8f0',
-              }}
-            />
+            <div className="loading-placeholder" />
           )}
-          <span>
-            Linha {piece.row + 1} • Coluna {piece.col + 1}
-            {typeof piece.score === 'number' && (
-              <span className="badge" style={{ marginLeft: 6 }}>
-                Score {(piece.score * 100).toFixed(1)}%
-              </span>
-            )}
-          </span>
+          <div className="piece-info">
+            <span>
+              {piece.row + 1}×{piece.col + 1}
+              {typeof piece.score === 'number' && (
+                <span className="score-badge">{(piece.score * 100).toFixed(1)}%</span>
+              )}
+            </span>
+          </div>
         </div>
       ))}
       {pieces.length > maxVisible && (

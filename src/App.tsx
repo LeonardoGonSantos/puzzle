@@ -10,6 +10,8 @@ import { StatusBanner } from './components/StatusBanner';
 import { StepIndicator } from './components/StepIndicator';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { usePuzzleController } from './hooks/usePuzzleController';
+import { NavBar } from './components/shell/NavBar';
+import { FixedFooter } from './components/shell/FixedFooter';
 
 function App() {
   const {
@@ -61,54 +63,76 @@ function App() {
     prevPhaseRef.current = phase;
   }, [fireConfetti, phase]);
 
+  const currentStep = Number(step) as 1 | 2 | 3;
+
+  const getFooterContent = () => {
+    if (currentStep === 1) {
+      return (
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            if (image) handlePieceCountChange(4); // Mínimo de peças
+          }}
+          disabled={!image}
+        >
+          Continuar
+        </button>
+      );
+    }
+
+    if (currentStep === 2) {
+      return (
+        <>
+          <button type="button" className="primary" onClick={splitPuzzle} disabled={!image}>
+            Gerar peças
+          </button>
+          <button type="button" className="reset-button" onClick={reset}>
+            Voltar
+          </button>
+        </>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="app-shell">
       <LoadingOverlay mode="splitting" visible={phase === 'splitting'} />
       <LoadingOverlay mode="matching" visible={phase === 'matching'} />
 
-      <header className="app-header">
-        <h1 className="app-title">Puzzle Piece Locator</h1>
-        <p className="app-subtitle">
-          Faça upload do quebra-cabeça, informe a quantidade de peças e deixe que a gente encontre o
-          lugar certo para aquela peça perdida.
-        </p>
-      </header>
+      <NavBar />
 
-      <StepIndicator current={step} />
+      <StepIndicator current={currentStep} />
 
-      {controllerError && <StatusBanner variant="error">{controllerError}</StatusBanner>}
+      <main className="app-content">
+        {controllerError && <StatusBanner variant="error">{controllerError}</StatusBanner>}
 
-      {step === 1 && (
-        <PuzzleUploader
-          phase={phase}
-          onPuzzleSelected={handlePuzzleSelected}
-          image={image}
-          isSplitting={isSplitting}
-          lastError={errorContext === 'upload' ? controllerError : undefined}
-        />
-      )}
+        {currentStep === 1 && (
+          <PuzzleUploader
+            phase={phase}
+            onPuzzleSelected={handlePuzzleSelected}
+            image={image}
+            isSplitting={isSplitting}
+            lastError={errorContext === 'upload' ? controllerError : undefined}
+          />
+        )}
 
-      {step === 2 && (
-        <PuzzleConfigurator
-          image={image}
-          phase={phase}
-          splitProgress={splitProgress}
-          onPieceCountChange={handlePieceCountChange}
-          onGenerate={splitPuzzle}
-        />
-      )}
+        {currentStep === 2 && (
+          <PuzzleConfigurator
+            image={image}
+            phase={phase}
+            splitProgress={splitProgress}
+            onPieceCountChange={handlePieceCountChange}
+            onGenerate={splitPuzzle}
+          />
+        )}
 
-      {step === 3 && (
-        <div className="actions-grid">
-          <div className="card">
-            <h2>Visualização</h2>
+        {currentStep === 3 && (
+          <>
             <PuzzleCanvas image={image} match={matchedPiece} candidates={topMatches} />
-          </div>
 
-          <div
-            className="actions-stack"
-            style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
-          >
             <PieceMatcher
               phase={phase}
               onPieceUpload={handlePieceUpload}
@@ -123,17 +147,19 @@ function App() {
               onMatchingModeChange={(mode) => setMatchingMode(mode)}
             />
 
-            <div className="card">
+            <section className="gallery-section">
               <h2>Peças mapeadas ({pieces.length})</h2>
               <PieceGallery pieces={pieces} isLoading={isSplitting} />
-            </div>
+            </section>
 
-            <button type="button" onClick={() => reset()} style={{ alignSelf: 'flex-start' }}>
+            <button type="button" className="reset-button" onClick={() => reset()}>
               Reiniciar fluxo
             </button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </main>
+
+      {getFooterContent() && <FixedFooter>{getFooterContent()}</FixedFooter>}
     </div>
   );
 }

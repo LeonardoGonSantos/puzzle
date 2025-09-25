@@ -121,7 +121,7 @@ export const usePuzzleController = () => {
     pieceMapRef.current.clear();
     setHierarchyNodes([]);
     setHierarchyPath([]);
-    setStep(1);
+    setStep(1); // Voltar para o primeiro passo
     reset();
   }, [disposePieceUrls, reset, setHierarchyNodes, setHierarchyPath, setStep]);
 
@@ -143,7 +143,7 @@ export const usePuzzleController = () => {
         };
         setImage(puzzleImage);
         setPhase('idle');
-        setStep(2);
+        setStep(2); // Ir para a configuração de peças
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha ao processar imagem';
         setControllerError(message);
@@ -226,7 +226,7 @@ export const usePuzzleController = () => {
 
       setPieces(records);
       setPhase('ready');
-      setStep(3);
+      setStep(3); // Ir para a busca de peças
       setSplitProgress(null);
       pieceMapRef.current = new Map(records.map((record) => [record.id, record]));
     } catch (error) {
@@ -235,6 +235,7 @@ export const usePuzzleController = () => {
       setErrorContext('split');
       setPhase('idle');
       setSplitProgress(null);
+      setStep(2); // Voltar para a configuração de peças
     }
   }, [
     disposePieceUrls,
@@ -535,5 +536,6 @@ export const usePuzzleController = () => {
     handlePieceCountChange,
     setMatchingMode,
     reset: resetState,
+    goToStep: setStep,
   };
 };

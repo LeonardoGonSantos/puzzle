@@ -1,5 +1,7 @@
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 import type { MatchCandidate, MatchResult, PuzzleImage } from '../types/puzzle';
+import { NavBar } from './shell/NavBar';
+import './PuzzleCanvas.css';
 
 interface PuzzleCanvasProps {
   image?: PuzzleImage;
@@ -16,6 +18,8 @@ const palette = [
 ];
 
 export const PuzzleCanvas = ({ image, match, candidates = [] }: PuzzleCanvasProps) => {
+  const [zoom, setZoom] = useState(1);
+
   if (!image) {
     return (
       <p className="helper-text">Faça upload de uma imagem do quebra-cabeça para visualizar.</p>
@@ -39,44 +43,80 @@ export const PuzzleCanvas = ({ image, match, candidates = [] }: PuzzleCanvasProp
         : []
   ) as MatchCandidate[];
 
-  return (
-    <div className="canvas-wrapper">
-      <img src={image.dataUrl} alt="Quebra-cabeça completo" />
-      {overlays.length > 0 && (
-        <div className="highlight-layer">
-          {overlays.slice(0, 3).map((candidate) => {
-            const swatch = palette[candidate.rank - 1] ?? palette[palette.length - 1];
-            const style: CSSProperties = {
-              top: `${(candidate.row / grid.rows) * 100}%`,
-              left: `${(candidate.col / grid.cols) * 100}%`,
-              width: `${(1 / grid.cols) * 100}%`,
-              height: `${(1 / grid.rows) * 100}%`,
-              borderColor: swatch.border,
-              background: swatch.fill,
-            };
+  const handleZoomIn = () => {
+    setZoom((current) => Math.min(current + 0.25, 2));
+  };
 
-            return (
-              <div key={candidate.pieceId} className="highlight-rect" style={style}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    left: 6,
-                    padding: '2px 6px',
-                    borderRadius: 999,
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: '#0f172a',
-                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                  }}
-                >
-                  #{candidate.rank}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+  const handleZoomOut = () => {
+    setZoom((current) => Math.max(current - 0.25, 0.5));
+  };
+
+  return (
+    <div className="puzzle-screen">
+      <NavBar />
+      <div className="canvas-wrapper">
+        <img
+          src={image.dataUrl}
+          alt="Quebra-cabeça completo"
+          style={{ transform: `scale(${zoom})` }}
+        />
+        {overlays.length > 0 && (
+          <div className="highlight-layer">
+            {overlays.slice(0, 3).map((candidate) => {
+              const swatch = palette[candidate.rank - 1] ?? palette[palette.length - 1];
+              const style: CSSProperties = {
+                top: `${(candidate.row / grid.rows) * 100}%`,
+                left: `${(candidate.col / grid.cols) * 100}%`,
+                width: `${(1 / grid.cols) * 100}%`,
+                height: `${(1 / grid.rows) * 100}%`,
+                borderColor: swatch.border,
+                background: swatch.fill,
+              };
+
+              return (
+                <div key={candidate.pieceId} className="highlight-rect" style={style}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      left: 6,
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    }}
+                  >
+                    #{candidate.rank}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="zoom-controls">
+        <button
+          type="button"
+          className="zoom-button"
+          onClick={handleZoomIn}
+          disabled={zoom >= 2}
+          aria-label="Aumentar zoom"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="zoom-button"
+          onClick={handleZoomOut}
+          disabled={zoom <= 0.5}
+          aria-label="Diminuir zoom"
+        >
+          -
+        </button>
+      </div>
     </div>
   );
 };
