@@ -1,4 +1,6 @@
 import './App.css';
+import confetti from 'canvas-confetti';
+import { useCallback, useEffect, useRef } from 'react';
 import { PieceGallery } from './components/PieceGallery';
 import { PieceMatcher } from './components/PieceMatcher';
 import { PuzzleCanvas } from './components/PuzzleCanvas';
@@ -13,7 +15,6 @@ function App() {
     phase,
     matchedPiece,
     topMatches,
-    hierarchyPath,
     controllerError,
     errorContext,
     splitProgress,
@@ -28,6 +29,31 @@ function App() {
 
   const isSplitting = phase === 'splitting';
   const isMatching = phase === 'matching';
+
+  const prevPhaseRef = useRef(phase);
+
+  const fireConfetti = useCallback((mode: 'cheer' | 'celebrate') => {
+    if (typeof window === 'undefined') return;
+    const base = {
+      particleCount: mode === 'celebrate' ? 160 : 80,
+      spread: mode === 'celebrate' ? 90 : 60,
+      startVelocity: mode === 'celebrate' ? 55 : 35,
+      gravity: 0.9,
+    };
+    confetti({ ...base, origin: { x: 0.2, y: 0.3 } });
+    confetti({ ...base, origin: { x: 0.8, y: 0.3 } });
+  }, []);
+
+  useEffect(() => {
+    const previous = prevPhaseRef.current;
+    if (phase === 'ready' && previous !== 'ready') {
+      fireConfetti('cheer');
+    }
+    if (phase === 'match-found' && previous !== 'match-found') {
+      fireConfetti('celebrate');
+    }
+    prevPhaseRef.current = phase;
+  }, [fireConfetti, phase]);
 
   return (
     <div className="app-shell">
@@ -64,7 +90,6 @@ function App() {
             onPieceUpload={handlePieceUpload}
             match={matchedPiece}
             candidates={topMatches}
-            path={hierarchyPath}
             isMatching={isMatching}
             matchProgress={matchProgress}
             piecesCount={pieces.length}
@@ -80,12 +105,7 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div className="card">
             <h2>Visualização</h2>
-            <PuzzleCanvas
-              image={image}
-              match={matchedPiece}
-              candidates={topMatches}
-              path={hierarchyPath}
-            />
+            <PuzzleCanvas image={image} match={matchedPiece} candidates={topMatches} />
           </div>
 
           <div className="card">

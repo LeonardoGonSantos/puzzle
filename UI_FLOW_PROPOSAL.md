@@ -1,65 +1,70 @@
-# Puzzle Piece Locator – Fluxo Visual & Layout (Mobile-First + Fun Mood)
+# Puzzle Piece Locator – Fluxo Mobile-First com Interações Divertidas
 
-## Objetivo
+## Estrutura Geral
 
-Entregar uma jornada em etapas muito visual, com vibe divertida e temática de quebra-cabeça. A experiência deve incentivar o usuário a enviar ou tirar foto na hora, mostrar progresso com animações (confetes, peças dançantes) e fornecer feedback claro em cada fase.
+- Linha do tempo com 3 telas principais (Tela 1, 2 e 3), cada uma projetada para mobile.
+- Entre as transições, exibir “puzzle loader”: animação fullscreen com peça dançando + frases engraçadas (ex.: “Juntando as pontas...”).
+- Stepper fixo superior (bolinhas numeradas + ícones) reforça progresso.
 
-## Steps & Interações
+## Tela 1 – Escolha do Puzzle (Step 1/3)
 
-1. **Step 1 – Escolher Foto do Puzzle**
-   - **Opções**: `Enviar foto da galeria` ou `Tirar foto agora` (botões lado a lado, com ícones de pasta e câmera).
-   - **Visual**: card com fundo lúdico (peças semi-transparentes) e animação leve quando a foto é selecionada (peças girando).
-   - **Extras**: link “Dicas rápidas” abre bottom sheet com checklist (boa iluminação, ângulo superior).
-   - **CTA**: “Continuar para grade”.
+### Layout
 
-2. **Step 2 – Ajustar Grade Inicial**
-   - **Preview**: puzzle preenchendo a tela, overlay da grade 3x4 com bordas coloridas.
-   - **Ações**: slider para ajustar linhas/colunas, botão “Auto-ajustar” (animação de peças se encaixando).
-   - **Feedback**: badge “Grade pronta!” com micro-confete quando validado.
-   - **CTA**: “Dividir puzzle”.
+- **AppBar**: logo + botão ajuda (abre modal com dicas).
+- **Card central** com título “Comece seu mapa 🧩”, descrição e dois botões do mesmo tamanho:
+  - `📁 Enviar da galeria`
+  - `📸 Tirar foto agora`
+- Após selecionar, mostra thumbnail mini + texto “Perfeito! Foto carregada”.
+- **CTA fixo** no rodapé: botão “Próximo” (desabilitado até ter foto).
 
-3. **Step 3 – Dividir Peças & Armazenar**
-   - **Timeline**: barra de progresso com checkpoints (“Cortando”, “Gerando miniaturas”, “Salvando”).
-   - **Animação**: conforme peças são processadas, mini thumbnails saltam para o grid com efeito bounce.
-   - **Ações**: “Ver detalhes da divisão” abre modal com estatísticas (tempo, tamanho médio das peças).
-   - **CTA**: “Ir para localizar peça”.
+### Interações & animações
 
-4. **Step 4 – Enviar/Tirar Foto da Peça**
-   - **Dual CTA**: `Enviar foto da peça` (abre picker) e `Tirar foto agora` (ativação de câmera com overlay guia em formato de puzzle).
-   - **Mensagens**: dicas gamificadas (“Capture como se fosse um detetive!”).
-   - **Loading**: animação de peças girando formando um coração enquanto o worker trabalha.
-   - **CTA**: “Analisar peça”.
+- Botões têm hover/press com leve bounce.
+- Ao selecionar foto, surge animação confete suave no card.
 
-5. **Step 5 – Resultado & Celebração**
-   - **Visual**: puzzle com highlight da peça; Top 5 candidatos aparece como cartões coloridos com medalhas.
-   - **Confete**: se score > 85%, disparar confete (CSS ou Lottie) e mensagem “Encontramos a peça! 🧩✨”.
-   - **Fallback**: score baixo → mensagem bem-humorada, ex.: “Hmm… essa peça fugiu! Tente outra foto 😉”.
-   - **Ações**: “Salvar imagem”, “Compartilhar com amigos”, “Tentar novamente”.
+## Loading 1 – “Preparando grade”
 
-## Layout & Estilo (Mobile-First)
+- Fullscreen com fundo degradê.
+- Lottie ou CSS de peça dançando girando.
+- Texto cíclico: “Ajustando cantos...”, “Polindo bordas...”.
 
-- **Stepper fixo** no topo com ícones decorativos (peça, grade, tesoura, câmera, medalha).
-- **Cards modulares** com fundos gradientes (ex.: azul/roxo) e texturas de puzzle.
-- **CTAs sticky** no rodapé (botões grandes com cantos 24px).
-- **Paleta**: Azul (#2563EB), Amarelo (#FACC15) para destaques, Roxo (#7C3AED) para diversão.
-- **Tipografia**: Inter + destaque com fonte script divertida (para headings curtos).
+## Tela 2 – Validar foto & Peças (Step 2/3)
 
-## Animações & Microinterações
+### Layout
 
-- Upload: animação “peça flutuando” até encaixar no card.
-- Progresso: confete digital quando etapas são completadas.
-- Estados vazios: ilustrações de peças sorridentes.
-- Humor: tooltips com frases (“Peças unidas jamais serão vencidas!”).
+- Header mostra stepper + informação “Foto pronta”.
+- **Preview** da foto ocupa 60% da altura, com botão flutuante “Trocar foto”.
+- Card inferior com pergunta: “Quantas peças esse puzzle tem?”
+  - Input numérico + chips com sugestões (100, 500, 1000).
+  - Mensagem divertida (“Quanto mais preciso, mais rápido encontramos a peça!”).
+- CTA rodapé: “Gerar grade”.
 
-## Versão Desktop
+### Interações & animações
 
-- Layout 12 colunas: 4 para stepper, 8 para conteúdo.
-- Cards expandidos; grid de peças com efeito hover.
-- Side panel com log da hierarquia opcional (timeline vertical).
+- Ao tocar nos chips, input atualiza com animação vibrante.
+- Quando o usuário clica “Gerar grade”, botão transforma em loader com ícone de tesoura cortando.
 
-## Próximos Passos
+## Loading 2 – “Dividindo puzzle”
 
-1. Produzir wireframes mobile/desktop com stepper divertido e CTAs duplos (upload/câmera).
-2. Definir assets animados (Lottie ou CSS) e gatilhos de confete.
-3. Planejar estados offline/erro com mensagens leves.
-4. Documentar tokens de design (cores, espaçamentos, animações) para handoff.
+- Peças caindo do topo e se encaixando.
+- Mensagens cíclicas (“Desmontando cuidadosamente...”, “Quase lá!”).
+
+## Tela 3 – Puzzle Quadriculado + Enviar Peça (Step 3/3)
+
+### Layout
+
+- **Header**: Stepper completo + texto “Vamos encontrar sua peça!”.
+- Secção principal: puzzle quadriculado com slider de zoom; toggle para mostrar/esconder grade.
+- Abaixo: card “Envie sua peça” com botões (galeria/câmera) e dica (“Capture como se fosse o detetive das peças”).
+- Lista Top 5 aparece após o matching com cartões horizontais.
+
+### Interações & animações
+
+- Ao enviar a peça, loader com peças girando e frase “Comparando quadrantes...”.
+- Se encontrar: confete + highlight na grade com pulse.
+- Se não encontrar: animação triste (peça abanando “não”) + CTA “Tentar novamente”.
+
+## Considerações Adicionais
+
+- Todo texto reforça tom divertido, incentivando o usuário a brincar com o processo.
+- Para desktop, os mesmos componentes escalonam com mais espaço lateral.

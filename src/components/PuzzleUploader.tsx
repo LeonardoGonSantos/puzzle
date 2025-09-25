@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PuzzleImage, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
 
@@ -25,6 +25,8 @@ export const PuzzleUploader = ({
 }: PuzzleUploaderProps) => {
   const [pieceCountInput, setPieceCountInput] = useState('100');
   const [selectedFilename, setSelectedFilename] = useState<string>();
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (image?.grid?.totalPieces) {
@@ -35,13 +37,33 @@ export const PuzzleUploader = ({
   const isReady = phase === 'ready' || phase === 'splitting';
   const totalPieces = image?.grid.totalPieces ?? (Number(pieceCountInput) || 0);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const processFile = async (file: File | undefined) => {
     if (!file) return;
     const count = Number(pieceCountInput);
     setSelectedFilename(file.name);
     await onPuzzleSelected({ file, pieceCount: Number.isFinite(count) ? count : 0 });
+  };
+
+  const handleGalleryChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    await processFile(file);
     event.target.value = '';
+  };
+
+  const handleCameraChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    await processFile(file);
+    event.target.value = '';
+  };
+
+  const triggerGalleryPicker = () => {
+    if (isSplitting) return;
+    galleryInputRef.current?.click();
+  };
+
+  const triggerCameraCapture = () => {
+    if (isSplitting) return;
+    cameraInputRef.current?.click();
   };
 
   const handlePieceCountInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,21 +94,54 @@ export const PuzzleUploader = ({
       {lastError && <StatusBanner variant="error">{lastError}</StatusBanner>}
 
       {isReady && !lastError && (
-        <StatusBanner variant="success">Pronto, já mapeamos todas as peças.</StatusBanner>
+        <StatusBanner variant="success">
+          🎉 Uhul! Quebra-cabeça fatiado – pronto para investigar as peças.
+        </StatusBanner>
       )}
 
       <div className="input-group">
         <label className="label" htmlFor="puzzle-file-input">
           Foto do quebra-cabeça completo
         </label>
+        <div className="upload-actions">
+          <button
+            type="button"
+            className="upload-button"
+            onClick={triggerGalleryPicker}
+            disabled={isSplitting}
+          >
+            📁 Enviar da galeria
+          </button>
+          <button
+            type="button"
+            className="upload-button"
+            onClick={triggerCameraCapture}
+            disabled={isSplitting}
+          >
+            📸 Tirar foto agora
+          </button>
+        </div>
         <input
+          ref={galleryInputRef}
           id="puzzle-file-input"
           type="file"
           accept="image/*"
-          onChange={handleFileChange}
-          disabled={isSplitting}
+          onChange={handleGalleryChange}
+          style={{ display: 'none' }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleCameraChange}
+          style={{ display: 'none' }}
         />
         {selectedFilename && <p className="helper-text">Arquivo selecionado: {selectedFilename}</p>}
+        <p className="helper-text playful-text">
+          Dica: alinhe o puzzle como se fosse uma foto para álbum – luz natural deixa os detalhes
+          brilhando! ✨
+        </p>
       </div>
 
       <div className="input-group">

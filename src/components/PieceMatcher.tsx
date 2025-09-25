@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { MatchCandidate, MatchResult, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
 
@@ -28,6 +28,8 @@ export const PieceMatcher = ({
   lastError,
 }: PieceMatcherProps) => {
   const [lastUploadedName, setLastUploadedName] = useState<string>();
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const canUploadPiece = piecesCount > 0 && modelStatus !== 'loading';
   const hasCandidates = candidates.length > 0;
@@ -39,15 +41,14 @@ export const PieceMatcher = ({
     if (phase === 'match-found' && match) {
       return (
         <StatusBanner variant="success">
-          Encontrei onde ela fica! Linha {match.row + 1}, coluna {match.col + 1}.
+          🧩 Achamos a peça! Linha {match.row + 1}, coluna {match.col + 1}. Confete liberado!
         </StatusBanner>
       );
     }
     if (phase === 'match-not-found') {
       return (
         <StatusBanner variant="warning">
-          Não encontramos uma peça com alta confiança. Tente ajustar a iluminação ou o
-          enquadramento.
+          Hmm, essa peça deu um perdido! Tente outra foto ou ajuste a iluminação.
         </StatusBanner>
       );
     }
@@ -55,7 +56,11 @@ export const PieceMatcher = ({
       return <StatusBanner variant="info">Analisando a peça...</StatusBanner>;
     }
     if (phase === 'ready') {
-      return <StatusBanner variant="info">Pronto, já mapeamos todas as peças.</StatusBanner>;
+      return (
+        <StatusBanner variant="info">
+          Todas as peças catalogadas. Pode mandar o close! 😎
+        </StatusBanner>
+      );
     }
     return null;
   }, [lastError, match, phase]);
@@ -66,6 +71,16 @@ export const PieceMatcher = ({
     setLastUploadedName(file.name);
     await onPieceUpload(file);
     event.target.value = '';
+  };
+
+  const openGalleryPicker = () => {
+    if (!canUploadPiece || isMatching) return;
+    galleryInputRef.current?.click();
+  };
+
+  const openCameraCapture = () => {
+    if (!canUploadPiece || isMatching) return;
+    cameraInputRef.current?.click();
   };
 
   return (
@@ -84,13 +99,39 @@ export const PieceMatcher = ({
         <label className="label" htmlFor="single-piece-input">
           Foto da peça
         </label>
+        <div className="upload-actions">
+          <button
+            type="button"
+            className="upload-button"
+            onClick={openGalleryPicker}
+            disabled={!canUploadPiece || isMatching}
+          >
+            🖼️ Enviar da galeria
+          </button>
+          <button
+            type="button"
+            className="upload-button"
+            onClick={openCameraCapture}
+            disabled={!canUploadPiece || isMatching}
+          >
+            🤳 Tirar foto agora
+          </button>
+        </div>
         <input
+          ref={galleryInputRef}
           id="single-piece-input"
           type="file"
           accept="image/*"
-          capture="environment"
-          disabled={!canUploadPiece || isMatching}
           onChange={handleChange}
+          style={{ display: 'none' }}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleChange}
+          style={{ display: 'none' }}
         />
         {!canUploadPiece && (
           <p className="helper-text">
@@ -108,6 +149,9 @@ export const PieceMatcher = ({
         {modelStatus === 'loading' && (
           <p className="helper-text">Carregando modelo de reconhecimento, aguarde...</p>
         )}
+        <p className="helper-text playful-text">
+          Capture a peça como se fosse um close de revista! Fundos lisos ajudam muito. 🧩📸
+        </p>
       </div>
 
       {match && (
