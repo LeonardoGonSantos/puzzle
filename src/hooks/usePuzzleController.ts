@@ -7,6 +7,7 @@ import type {
   MatchResult,
   PieceRecord,
   PuzzleImage,
+  MatchingMode,
 } from '../types/puzzle';
 import { createId } from '../utils/id';
 import { deriveGrid, calculateTileSize } from '../utils/grid';
@@ -88,6 +89,7 @@ export const usePuzzleController = () => {
     null,
   );
   const [modelStatus, setModelStatus] = useState<'idle' | 'loading' | 'ready'>('idle');
+  const [matchingMode, setMatchingMode] = useState<MatchingMode>('hierarchy');
 
   const puzzleBitmapRef = useRef<ImageBitmap | null>(null);
   const pieceUrlsRef = useRef<string[]>([]);
@@ -366,7 +368,7 @@ export const usePuzzleController = () => {
         let hierarchyPayload: HierarchyNodePayload[] | undefined;
         let rootNodeIds: string[] | undefined;
 
-        if (currentHierarchy.length > 0) {
+        if (matchingMode === 'hierarchy' && currentHierarchy.length > 0) {
           hierarchyPayload = await Promise.all(
             currentHierarchy.map(async (node) => ({
               id: node.id,
@@ -416,7 +418,7 @@ export const usePuzzleController = () => {
           result.match && result.match.score >= MATCH_THRESHOLD ? result.match : undefined;
 
         setMatchResult(evaluatedMatch, candidates);
-        setHierarchyPath(result.path ?? []);
+        setHierarchyPath(matchingMode === 'hierarchy' ? (result.path ?? []) : []);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha ao comparar a peça';
         setControllerError(message);
@@ -433,6 +435,7 @@ export const usePuzzleController = () => {
       ensurePieceEmbedding,
       ensureNodeEmbedding,
       hierarchyNodes,
+      matchingMode,
       runMatch,
       setMatchResult,
       setHierarchyPath,
@@ -504,6 +507,7 @@ export const usePuzzleController = () => {
       matchProgress,
       modelStatus,
       step,
+      matchingMode,
     }),
     [
       controllerError,
@@ -514,6 +518,7 @@ export const usePuzzleController = () => {
       topMatches,
       hierarchyNodes,
       hierarchyPath,
+      matchingMode,
       modelStatus,
       phase,
       pieces,
@@ -528,6 +533,7 @@ export const usePuzzleController = () => {
     splitPuzzle,
     handlePieceUpload,
     handlePieceCountChange,
+    setMatchingMode,
     reset: resetState,
   };
 };

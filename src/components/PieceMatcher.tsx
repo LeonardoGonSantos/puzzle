@@ -1,8 +1,29 @@
 import { useMemo, useRef, useState } from 'react';
-import type { MatchCandidate, MatchResult, ProcessingPhase } from '../types/puzzle';
+import type { MatchingMode, MatchCandidate, MatchResult, ProcessingPhase } from '../types/puzzle';
 import { StatusBanner } from './StatusBanner';
 
 const candidateColors = ['#dc2626', '#ea580c', '#ca8a04', '#10b981', '#0ea5e9'];
+
+const MATCHING_MODE_OPTIONS: Array<{
+  value: MatchingMode;
+  title: string;
+  description: string;
+  badge?: string;
+}> = [
+  {
+    value: 'hierarchy',
+    title: 'Busca guiada por quadrantes',
+    description:
+      'Explora primeiro os quadrantes mais promissores e refina até chegar na peça exata. Recomendado para a maioria dos casos.',
+    badge: 'Mais assertivo',
+  },
+  {
+    value: 'global',
+    title: 'Busca direta em todas as peças',
+    description:
+      'Pula a hierarquia e compara a peça com todas as partes do tabuleiro de uma vez. Ideal para revisões rápidas.',
+  },
+];
 
 interface PieceMatcherProps {
   phase: ProcessingPhase;
@@ -14,6 +35,8 @@ interface PieceMatcherProps {
   piecesCount: number;
   modelStatus: 'idle' | 'loading' | 'ready';
   lastError?: string;
+  matchingMode: MatchingMode;
+  onMatchingModeChange: (mode: MatchingMode) => void;
 }
 
 export const PieceMatcher = ({
@@ -26,6 +49,8 @@ export const PieceMatcher = ({
   piecesCount,
   modelStatus,
   lastError,
+  matchingMode,
+  onMatchingModeChange,
 }: PieceMatcherProps) => {
   const [lastUploadedName, setLastUploadedName] = useState<string>();
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -95,6 +120,62 @@ export const PieceMatcher = ({
       </div>
 
       {statusNode}
+
+      <fieldset className="input-group" style={{ border: 'none', padding: 0 }}>
+        <legend className="label" style={{ marginBottom: 8 }}>
+          Estratégia de busca
+        </legend>
+        <p className="helper-text" style={{ marginTop: 0 }}>
+          Escolha como quer localizar a peça agora. Você pode alternar entre as abordagens sempre
+          que quiser.
+        </p>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {MATCHING_MODE_OPTIONS.map((option) => {
+            const selected = matchingMode === option.value;
+            return (
+              <label
+                key={option.value}
+                className="card"
+                style={{
+                  borderColor: selected ? '#7c3aed' : 'transparent',
+                  boxShadow: selected ? '0 0 0 2px rgba(124,58,237,0.25)' : undefined,
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                  gap: 12,
+                  padding: 20,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <input
+                    type="radio"
+                    name="matching-mode"
+                    value={option.value}
+                    checked={selected}
+                    onChange={() => onMatchingModeChange(option.value)}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 600 }}>{option.title}</span>
+                      {option.badge && (
+                        <span
+                          className="badge"
+                          style={{ backgroundColor: '#7c3aed', color: '#fff' }}
+                        >
+                          {option.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="helper-text" style={{ marginTop: 4 }}>
+                      {option.description}
+                    </p>
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <div className="input-group">
         <label className="label" htmlFor="single-piece-input">

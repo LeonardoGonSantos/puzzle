@@ -52,6 +52,8 @@ export interface MatchCandidate extends MatchResult {
 
 export type FlowStep = 1 | 2 | 3;
 
+export type MatchingMode = 'hierarchy' | 'global';
+
 export interface QuadBounds {
   x: number;
   y: number;

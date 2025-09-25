@@ -24,10 +24,12 @@ function App() {
     matchProgress,
     modelStatus,
     step,
+    matchingMode,
     handlePuzzleSelected,
     splitPuzzle,
     handlePieceUpload,
     handlePieceCountChange,
+    setMatchingMode,
     reset,
   } = usePuzzleController();
 
@@ -103,7 +105,10 @@ function App() {
             <PuzzleCanvas image={image} match={matchedPiece} candidates={topMatches} />
           </div>
 
-          <div className="actions-stack" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div
+            className="actions-stack"
+            style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+          >
             <PieceMatcher
               phase={phase}
               onPieceUpload={handlePieceUpload}
@@ -114,6 +119,8 @@ function App() {
               piecesCount={pieces.length}
               modelStatus={modelStatus}
               lastError={errorContext === 'match' ? controllerError : undefined}
+              matchingMode={matchingMode}
+              onMatchingModeChange={(mode) => setMatchingMode(mode)}
             />
 
             <div className="card">
