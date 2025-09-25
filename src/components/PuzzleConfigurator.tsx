@@ -28,8 +28,9 @@ export const PuzzleConfigurator = ({
   useEffect(() => {
     if (currentTotal > 1) {
       setInputValue(String(currentTotal));
+      onPieceCountChange(currentTotal);
     }
-  }, [currentTotal]);
+  }, [currentTotal, onPieceCountChange]);
 
   const rowsCols = useMemo(() => {
     if (!image) {
@@ -72,8 +73,8 @@ export const PuzzleConfigurator = ({
       <div>
         <h2>Confirme as peças</h2>
         <p className="helper-text">
-          Revise a foto enviada e informe quantas peças existem no puzzle físico. Quanto mais preciso,
-          melhor!
+          Revise a foto enviada e informe quantas peças existem no puzzle físico. Quanto mais
+          preciso, melhor!
         </p>
       </div>
 
@@ -113,9 +114,7 @@ export const PuzzleConfigurator = ({
             </button>
           ))}
         </div>
-        {rowsCols && currentTotal > 1 && (
-          <p className="helper-text">Grade sugerida: {rowsCols}</p>
-        )}
+        {rowsCols && currentTotal > 1 && <p className="helper-text">Grade sugerida: {rowsCols}</p>}
         {error && <StatusBanner variant="error">{error}</StatusBanner>}
       </div>
 

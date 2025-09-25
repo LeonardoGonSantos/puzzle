@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 interface LoadingOverlayProps {
   mode: 'splitting' | 'matching';
   visible: boolean;
@@ -11,13 +9,10 @@ const messages: Record<LoadingOverlayProps['mode'], string[]> = {
 };
 
 export const LoadingOverlay = ({ mode, visible }: LoadingOverlayProps) => {
-  if (!visible) return null;
-
   const hints = messages[mode];
-  const message = useMemo(
-    () => hints[Math.floor(Math.random() * hints.length)],
-    [hints],
-  );
+  const message = hints[Math.floor(Math.random() * hints.length)];
+
+  if (!visible) return null;
 
   return (
     <div className="loading-overlay" role="status" aria-live="assertive">
