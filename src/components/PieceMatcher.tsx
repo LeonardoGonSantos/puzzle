@@ -32,7 +32,8 @@ export const PieceMatcher = ({
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const canUploadPiece = piecesCount > 0 && modelStatus !== 'loading';
-  const hasCandidates = candidates.length > 0;
+  const topCandidates = candidates.slice(0, 3);
+  const hasCandidates = topCandidates.length > 0;
 
   const statusNode = useMemo(() => {
     if (lastError) {
@@ -162,9 +163,9 @@ export const PieceMatcher = ({
 
       {hasCandidates && !isMatching && (
         <div>
-          <h3 style={{ margin: '8px 0', fontSize: '1rem' }}>Top 5 posições prováveis</h3>
+          <h3 style={{ margin: '8px 0', fontSize: '1rem' }}>Top 3 posições prováveis</h3>
           <ol style={{ margin: 0, paddingLeft: 20, color: '#1f2937' }}>
-            {candidates.slice(0, 5).map((candidate) => (
+            {topCandidates.map((candidate) => (
               <li
                 key={candidate.pieceId}
                 style={{

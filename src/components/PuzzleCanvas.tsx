@@ -44,7 +44,7 @@ export const PuzzleCanvas = ({ image, match, candidates = [] }: PuzzleCanvasProp
       <img src={image.dataUrl} alt="Quebra-cabeça completo" />
       {overlays.length > 0 && (
         <div className="highlight-layer">
-          {overlays.slice(0, 5).map((candidate) => {
+          {overlays.slice(0, 3).map((candidate) => {
             const swatch = palette[candidate.rank - 1] ?? palette[palette.length - 1];
             const style: CSSProperties = {
               top: `${(candidate.row / grid.rows) * 100}%`,
